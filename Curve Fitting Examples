@@ -1,0 +1,56 @@
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import sys
+from scipy.optimize import curve_fit
+import math
+
+
+#Extract Files & Set Xs and Ys
+f = open(sys.argv[1]) #extract text file
+data = dict()
+for line in f:
+    name, val = line.split()
+    val = float(val)
+    data[name] = [val]
+
+Conc = np.array(list(data.keys()), dtype = np.float)  #parameters defined
+Resp = np.array(list(data.values()), dtype = np.float)
+
+Resp3 = np.array(np.transpose(Resp)) #transpose if necessary
+Resp4 = np.concatenate([np.array(i) for i in Resp]) #convert to 1 list
+Resp5 = np.array(Resp4, dtype = np.float) #convert to float
+
+#Linear Fit
+deg1 = np.polyfit(Conc, Resp, 1)
+y = (np.min(Resp)+np.max(Resp))/2
+m = deg1[0]
+b = deg1[1]
+IC50 = (y-b)/m
+#print('Linear Fit IC50', IC50[0])
+print('Linear Fit IC50:',"{0:.2f}".format(round(IC50[0],2)))
+
+#Log Fit
+Conclog = np.log10(Conc, dtype = np.float)
+deglog = np.polyfit(Conclog, Resp, 1)
+m2=deglog[0]
+b2 = deglog[1]
+LogIC50 = 10**((y-b2)/m2)
+print('LogX-Linear Fit IC50:',"{0:.2f}".format(round(LogIC50[0],2)))
+
+#3 Parameter Sigmoidal Fit
+def sigfit(x,a,b,c):
+    return a+(b-a)/(1+10**(c-x))
+popt,popv = curve_fit(sigfit, Conclog, Resp5) #using Sci.py curvefit which returns a list for the parameters a,b,c in the function above
+sigest = 10**(popt[2])
+print('Sigmoid Fit Fixed Slope IC50:',"{0:.2f}".format(round(sigest,2)))
+
+#4 Parameter Hill Function Fit
+def hillfit(x,a,b,c,d):
+    return a+(b-a)/(1+10**((c-x)*d))
+popt2,popv2 = curve_fit(hillfit, Conclog, Resp5)
+sigffit = 10**(popt2[2])
+hslope = popt2[3]
+print('Sigmoid Fit IC50:',"{0:.2f}".format(round(sigffit,2)))
+print('Slope:',"{0:.3f}".format(round(hslope,3)))
